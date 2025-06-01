@@ -51,7 +51,7 @@ function App() {
               <Route path="/patrimoine" element={<Patrimoine />} />
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<Navigate to="/\" replace />} />
             </Route>
           </Routes>
           
