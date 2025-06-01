@@ -264,7 +264,7 @@ const ExpenseManager: React.FC = () => {
               <>
                 <Input
                   defaultValue={transaction.description}
-                  className="flex-1 mr-4"
+                  className="w-[60%] mr-4"
                   onBlur={(e) => {
                     handleUpdateTransaction(transaction.id, {
                       description: e.target.value,
@@ -275,7 +275,7 @@ const ExpenseManager: React.FC = () => {
                 <Input
                   type="number"
                   defaultValue={transaction.valeur_reel}
-                  className="w-32 mr-4"
+                  className="w-32 text-right"
                   onBlur={(e) => {
                     handleUpdateTransaction(transaction.id, {
                       description: transaction.description,
@@ -286,7 +286,7 @@ const ExpenseManager: React.FC = () => {
               </>
             ) : (
               <>
-                <div className="flex-1">
+                <div className="w-[60%]">
                   <span>{transaction.description}</span>
                 </div>
                 <div className="flex items-center space-x-4">
@@ -324,25 +324,27 @@ const ExpenseManager: React.FC = () => {
               description: e.target.value,
               nom: e.target.value
             })}
-            className="flex-1"
+            className="w-[60%]"
           />
-          <Input
-            type="number"
-            placeholder="Montant"
-            value={newItemData.valeur_reel}
-            onChange={(e) => setNewItemData({ 
-              ...newItemData, 
-              valeur_reel: parseFloat(e.target.value) 
-            })}
-            className="w-32"
-          />
-          <Button
-            onClick={() => handleAddItem('transaction', subcategoryId)}
-            size="sm"
-          >
-            <Plus size={16} className="mr-2" />
-            Transaction
-          </Button>
+          <div className="flex items-center space-x-4 justify-end flex-1">
+            <Input
+              type="number"
+              placeholder="Montant"
+              value={newItemData.valeur_reel}
+              onChange={(e) => setNewItemData({ 
+                ...newItemData, 
+                valeur_reel: parseFloat(e.target.value) 
+              })}
+              className="w-32 text-right"
+            />
+            <Button
+              onClick={() => handleAddItem('transaction', subcategoryId)}
+              size="sm"
+            >
+              <Plus size={16} className="mr-2" />
+              Transaction
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -364,11 +366,11 @@ const ExpenseManager: React.FC = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800">
-                <th className="text-left px-6 py-3">Dépenses</th>
-                <th className="text-right px-6 py-3">Réel</th>
-                <th className="text-right px-6 py-3">Prévisionnel</th>
-                <th className="text-right px-6 py-3">Écart</th>
-                <th className="w-20 px-6 py-3"></th>
+                <th className="text-left px-6 py-3 w-[45%]">Dépenses</th>
+                <th className="text-right px-6 py-3 w-[20%]">Réel</th>
+                <th className="text-right px-6 py-3 w-[20%]">Prévisionnel</th>
+                <th className="text-right px-6 py-3 w-[10%]">Écart</th>
+                <th className="w-[5%] px-6 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -523,7 +525,7 @@ const ExpenseManager: React.FC = () => {
                                           valeur_previsionnel: parseFloat(e.target.value) 
                                         })}
                                         onBlur={() => handleUpdateItem(subcategory.id)}
-                                        className="w-32 ml-auto"
+                                        className="w-32 text-right ml-auto"
                                       />
                                     ) : (
                                       formatAmount(subcategory.valeur_previsionnel || 0)
@@ -580,7 +582,7 @@ const ExpenseManager: React.FC = () => {
                           {category.isExpanded && (
                             <tr className="bg-gray-50 dark:bg-gray-800/50">
                               <td colSpan={5} className="px-6 py-2">
-                                <div className="flex items-center space-x-4 pl-6">
+                                <div className="flex items-center pl-6">
                                   <Input
                                     placeholder="Nouvelle sous-catégorie..."
                                     value={newItemData.nom}
@@ -588,9 +590,9 @@ const ExpenseManager: React.FC = () => {
                                       ...newItemData, 
                                       nom: e.target.value 
                                     })}
-                                    className="w-64"
+                                    className="w-[45%]"
                                   />
-                                  <div className="flex-1 flex justify-end pr-6">
+                                  <div className="flex items-center justify-end flex-1 pr-6">
                                     <Input
                                       type="number"
                                       placeholder="Prévisionnel"
@@ -599,7 +601,7 @@ const ExpenseManager: React.FC = () => {
                                         ...newItemData, 
                                         valeur_previsionnel: parseFloat(e.target.value) 
                                       })}
-                                      className="w-32"
+                                      className="w-32 text-right"
                                     />
                                     <Button
                                       onClick={() => handleAddItem('sous-categorie', category.id)}
