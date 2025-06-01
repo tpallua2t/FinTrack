@@ -135,9 +135,13 @@ const ExpenseManager: React.FC = () => {
       valeur_reel: newItemData.valeur_reel,
       valeur_previsionnel: newItemData.valeur_previsionnel,
       user_id: currentUser.uid,
-      parent_id: parentId,
       order: items.length
     };
+
+    // Only add parent_id if it's provided and not undefined
+    if (parentId) {
+      newItem.parent_id = parentId;
+    }
 
     try {
       const docRef = await addDoc(collection(db, 'expenses'), newItem);
