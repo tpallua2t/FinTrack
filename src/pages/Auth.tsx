@@ -109,13 +109,19 @@ const Auth: React.FC = () => {
           </CardHeader>
           <CardContent>
             {error && (
-              <div className="bg-red-50 text-red-800 p-3 rounded-lg mb-4 text-sm dark:bg-red-900/30 dark:text-red-400">
+              <div 
+                className="bg-red-50 text-red-800 p-3 rounded-lg mb-4 text-sm dark:bg-red-900/30 dark:text-red-400"
+                role="alert"
+              >
                 {error}
               </div>
             )}
             
             {message && (
-              <div className="bg-green-50 text-green-800 p-3 rounded-lg mb-4 text-sm dark:bg-green-900/30 dark:text-green-400">
+              <div 
+                className="bg-green-50 text-green-800 p-3 rounded-lg mb-4 text-sm dark:bg-green-900/30 dark:text-green-400"
+                role="alert"
+              >
                 {message}
               </div>
             )}
@@ -123,7 +129,11 @@ const Auth: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <Mail 
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" 
+                    size={18}
+                    aria-hidden="true"
+                  />
                   <Input
                     type="email"
                     placeholder="Email Address"
@@ -131,6 +141,7 @@ const Auth: React.FC = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     className="pl-10"
+                    aria-label="Email Address"
                   />
                 </div>
               </div>
@@ -138,7 +149,11 @@ const Auth: React.FC = () => {
               {mode !== 'forgot-password' && (
                 <div>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                    <Lock 
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" 
+                      size={18}
+                      aria-hidden="true"
+                    />
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Password"
@@ -147,11 +162,13 @@ const Auth: React.FC = () => {
                       required
                       className="pl-10"
                       minLength={6}
+                      aria-label="Password"
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full p-1"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -166,6 +183,7 @@ const Auth: React.FC = () => {
                 type="submit"
                 className="w-full"
                 isLoading={loading}
+                aria-label={mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : 'Reset Password'}
               >
                 {mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : 'Reset Password'}
               </Button>
@@ -183,8 +201,9 @@ const Auth: React.FC = () => {
                     className="w-full"
                     onClick={handleGoogleSignIn}
                     disabled={loading}
+                    aria-label="Continue with Google"
                   >
-                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" aria-hidden="true">
                       <path
                         fill="currentColor"
                         d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032c0-3.331,2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12c0,5.523,4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
@@ -204,7 +223,8 @@ const Auth: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setMode('signup')}
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium focus:outline-none focus:underline"
+                      aria-label="Switch to sign up"
                     >
                       Sign Up
                     </button>
@@ -212,7 +232,8 @@ const Auth: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setMode('forgot-password')}
-                    className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium mt-2"
+                    className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium mt-2 focus:outline-none focus:underline"
+                    aria-label="Reset password"
                   >
                     Forgot Password?
                   </button>
@@ -223,7 +244,8 @@ const Auth: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setMode('signin')}
-                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium focus:outline-none focus:underline"
+                    aria-label="Switch to sign in"
                   >
                     Sign In
                   </button>
@@ -232,7 +254,8 @@ const Auth: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setMode('signin')}
-                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium focus:outline-none focus:underline"
+                  aria-label="Back to sign in"
                 >
                   Back to Sign In
                 </button>
