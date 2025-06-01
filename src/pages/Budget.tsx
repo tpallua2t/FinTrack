@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import ExpenseManager from '../components/budget/ExpenseManager';
 import RevenueManager from '../components/budget/RevenueManager';
+import BudgetSummary from '../components/budget/BudgetSummary';
+import { format } from 'date-fns';
 
-type BudgetTab = 'expenses' | 'revenues';
+type BudgetTab = 'expenses' | 'revenues' | 'summary';
 
 const Budget: React.FC = () => {
   const [activeTab, setActiveTab] = useState<BudgetTab>('expenses');
+  const [selectedPeriod, setSelectedPeriod] = useState(() => format(new Date(), 'yyyy-MM'));
 
   return (
     <div className="space-y-6">
@@ -32,10 +35,22 @@ const Budget: React.FC = () => {
           >
             Revenus
           </button>
+          <button
+            onClick={() => setActiveTab('summary')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'summary'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            Synthèse
+          </button>
         </div>
       </div>
 
-      {activeTab === 'expenses' ? <ExpenseManager /> : <RevenueManager />}
+      {activeTab === 'expenses' && <ExpenseManager />}
+      {activeTab === 'revenues' && <RevenueManager />}
+      {activeTab === 'summary' && <BudgetSummary selectedPeriod={selectedPeriod} />}
     </div>
   );
 };
