@@ -7,7 +7,9 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { User } from '../types';
@@ -36,6 +38,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Enable persistent auth state
+  useEffect(() => {
+    setPersistence(auth, browserLocalPersistence)
+      .catch((error) => {
+        console.error('Error setting persistence:', error);
+      });
+  }, []);
+
   function mapFirebaseUser(firebaseUser: FirebaseUser): User {
     return {
       uid: firebaseUser.uid,
@@ -46,24 +56,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      if (error.code === 'auth/invalid-credential') {
+        throw new Error('Invalid email or password');
+      } else if (error.code === 'auth/too-many-requests') {
+        throw new Error('Too many failed attempts. Please try again later');
+      } else {
+        throw new Error('Failed to sign in. Please try again');
+      }
+    }
   }
 
   async function signUp(email: string, password: string) {
-    await createUserWithEmailAndPassword(auth, email, password);
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('Email already in use');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('Password is too weak');
+      } else {
+        throw new Error('Failed to create account. Please try again');
+      }
+    }
   }
 
   async function signOut() {
-    await firebaseSignOut(auth);
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      throw new Error('Failed to sign out');
+    }
   }
 
   async function signInWithGoogle() {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error('Sign in cancelled');
+      } else {
+        throw new Error('Failed to sign in with Google');
+      }
+    }
   }
 
   async function resetPassword(email: string) {
-    await sendPasswordResetEmail(auth, email);
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        throw new Error('No account found with this email');
+      } else {
+        throw new Error('Failed to send password reset email');
+      }
+    }
   }
 
   useEffect(() => {
