@@ -8,20 +8,22 @@ import Input from '../ui/Input';
 import { db } from '../../lib/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
-import { format, parse } from 'date-fns';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 interface ExpenseItem {
   id: string;
-  type: 'categorie' | 'sous-categorie' | 'depense';
+  type: 'categorie' | 'sous-categorie' | 'transaction';
   nom: string;
   mois: number;
   annee: number;
-  valeur_reel: number;
-  valeur_previsionnel: number;
+  valeur_reel?: number;
+  valeur_previsionnel?: number;
   user_id: string;
   parent_id?: string;
   order: number;
+  date?: Date;
+  description?: string;
   isExpanded?: boolean;
 }
 
@@ -33,7 +35,9 @@ const ExpenseManager: React.FC = () => {
   const [newItemData, setNewItemData] = useState({
     nom: '',
     valeur_reel: 0,
-    valeur_previsionnel: 0
+    valeur_previsionnel: 0,
+    description: '',
+    date: new Date()
   });
 
   const sensors = useSensors(
@@ -123,7 +127,7 @@ const ExpenseManager: React.FC = () => {
     }).format(amount);
   };
 
-  const handleAddItem = async (type: 'categorie' | 'sous-categorie', parentId?: string) => {
+  const handleAddItem = async (type: 'categorie' | 'sous-categorie' | 'transaction', parentId?: string) => {
     if (!currentUser || !newItemData.nom) return;
 
     const [year, month] = selectedPeriod.split('-');
@@ -132,13 +136,20 @@ const ExpenseManager: React.FC = () => {
       nom: newItemData.nom,
       mois: parseInt(month),
       annee: parseInt(year),
-      valeur_reel: newItemData.valeur_reel,
-      valeur_previsionnel: newItemData.valeur_previsionnel,
       user_id: currentUser.uid,
       order: items.length
     };
 
-    // Only add parent_id if it's provided and not undefined
+    // Add specific fields based on type
+    if (type === 'transaction') {
+      newItem.valeur_reel = newItemData.valeur_reel;
+      newItem.date = newItemData.date;
+      newItem.description = newItemData.description;
+    } else if (type === 'sous-categorie') {
+      newItem.valeur_previsionnel = newItemData.valeur_previsionnel;
+    }
+
+    // Only add parent_id if it's provided
     if (parentId) {
       newItem.parent_id = parentId;
     }
@@ -146,7 +157,13 @@ const ExpenseManager: React.FC = () => {
     try {
       const docRef = await addDoc(collection(db, 'expenses'), newItem);
       setItems([...items, { id: docRef.id, ...newItem } as ExpenseItem]);
-      setNewItemData({ nom: '', valeur_reel: 0, valeur_previsionnel: 0 });
+      setNewItemData({ 
+        nom: '', 
+        valeur_reel: 0, 
+        valeur_previsionnel: 0,
+        description: '',
+        date: new Date()
+      });
     } catch (error) {
       console.error('Erreur lors de l\'ajout:', error);
     }
@@ -162,7 +179,13 @@ const ExpenseManager: React.FC = () => {
         item.id === id ? { ...item, ...newItemData } : item
       ));
       setEditingItem(null);
-      setNewItemData({ nom: '', valeur_reel: 0, valeur_previsionnel: 0 });
+      setNewItemData({ 
+        nom: '', 
+        valeur_reel: 0, 
+        valeur_previsionnel: 0,
+        description: '',
+        date: new Date()
+      });
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
     }
@@ -179,11 +202,112 @@ const ExpenseManager: React.FC = () => {
     }
   };
 
-  const getTotalsByType = () => {
+  const calculateTotals = () => {
     const categories = items.filter(item => item.type === 'categorie');
-    const totalReel = categories.reduce((sum, item) => sum + item.valeur_reel, 0);
-    const totalPrevisionnel = categories.reduce((sum, item) => sum + item.valeur_previsionnel, 0);
+    let totalReel = 0;
+    let totalPrevisionnel = 0;
+
+    categories.forEach(category => {
+      const subcategories = items.filter(item => item.parent_id === category.id);
+      subcategories.forEach(subcategory => {
+        const transactions = items.filter(item => 
+          item.type === 'transaction' && 
+          item.parent_id === subcategory.id
+        );
+        
+        const subcategoryReel = transactions.reduce((sum, t) => sum + (t.valeur_reel || 0), 0);
+        totalReel += subcategoryReel;
+        totalPrevisionnel += subcategory.valeur_previsionnel || 0;
+      });
+    });
+
     return { totalReel, totalPrevisionnel };
+  };
+
+  const renderTransactions = (subcategoryId: string) => {
+    const transactions = items.filter(item => 
+      item.type === 'transaction' && 
+      item.parent_id === subcategoryId
+    );
+
+    return (
+      <div className="pl-12 space-y-2">
+        {transactions.map(transaction => (
+          <div key={transaction.id} className="flex items-center justify-between py-2 text-sm">
+            <div className="flex items-center space-x-4">
+              <span className="text-gray-500 dark:text-gray-400">
+                {format(transaction.date!, 'dd/MM/yyyy')}
+              </span>
+              <span>{transaction.description}</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span>{formatAmount(transaction.valeur_reel || 0)}</span>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    setEditingItem(transaction.id);
+                    setNewItemData({
+                      ...newItemData,
+                      nom: transaction.nom,
+                      valeur_reel: transaction.valeur_reel || 0,
+                      description: transaction.description || '',
+                      date: transaction.date || new Date()
+                    });
+                  }}
+                  className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
+                >
+                  <Edit2 size={16} />
+                </button>
+                <button
+                  onClick={() => handleDeleteItem(transaction.id)}
+                  className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        
+        {/* Add transaction form */}
+        <div className="flex items-center space-x-4 py-2">
+          <Input
+            type="date"
+            value={format(newItemData.date, 'yyyy-MM-dd')}
+            onChange={(e) => setNewItemData({ 
+              ...newItemData, 
+              date: new Date(e.target.value) 
+            })}
+            className="w-32"
+          />
+          <Input
+            placeholder="Description"
+            value={newItemData.description}
+            onChange={(e) => setNewItemData({ 
+              ...newItemData, 
+              description: e.target.value 
+            })}
+            className="flex-1"
+          />
+          <Input
+            type="number"
+            placeholder="Montant"
+            value={newItemData.valeur_reel}
+            onChange={(e) => setNewItemData({ 
+              ...newItemData, 
+              valeur_reel: parseFloat(e.target.value) 
+            })}
+            className="w-32"
+          />
+          <Button
+            onClick={() => handleAddItem('transaction', subcategoryId)}
+            size="sm"
+          >
+            <Plus size={16} />
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -219,105 +343,224 @@ const ExpenseManager: React.FC = () => {
                   items={items}
                   strategy={verticalListSortingStrategy}
                 >
-                  {items.map((item) => (
-                    <React.Fragment key={item.id}>
-                      <tr className={`
-                        border-b border-gray-200 dark:border-gray-800
-                        ${item.type === 'sous-categorie' ? 'bg-gray-50 dark:bg-gray-800/50' : ''}
-                      `}>
-                        <td className="px-6 py-3">
-                          <div className="flex items-center">
-                            {item.type === 'categorie' && (
-                              <button
-                                onClick={() => toggleExpand(item.id)}
-                                className="mr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                              >
-                                {item.isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                              </button>
-                            )}
-                            {editingItem === item.id ? (
-                              <Input
-                                value={newItemData.nom}
-                                onChange={(e) => setNewItemData({ ...newItemData, nom: e.target.value })}
-                                onBlur={() => handleUpdateItem(item.id)}
-                                className="w-48"
-                              />
-                            ) : (
-                              <span className={`
-                                ${item.type === 'categorie' ? 'font-medium' : 'pl-6'}
-                              `}>
-                                {item.nom}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="text-right px-6 py-3">
-                          {editingItem === item.id ? (
-                            <Input
-                              type="number"
-                              value={newItemData.valeur_reel}
-                              onChange={(e) => setNewItemData({ ...newItemData, valeur_reel: parseFloat(e.target.value) })}
-                              onBlur={() => handleUpdateItem(item.id)}
-                              className="w-32"
-                            />
-                          ) : (
-                            formatAmount(item.valeur_reel)
+                  {items
+                    .filter(item => item.type === 'categorie')
+                    .map((category) => {
+                      const subcategories = items.filter(
+                        item => item.type === 'sous-categorie' && 
+                        item.parent_id === category.id
+                      );
+
+                      const categoryReel = subcategories.reduce((sum, sub) => {
+                        const transactions = items.filter(
+                          t => t.type === 'transaction' && 
+                          t.parent_id === sub.id
+                        );
+                        return sum + transactions.reduce(
+                          (subSum, t) => subSum + (t.valeur_reel || 0), 
+                          0
+                        );
+                      }, 0);
+
+                      const categoryPrevisionnel = subcategories.reduce(
+                        (sum, sub) => sum + (sub.valeur_previsionnel || 0),
+                        0
+                      );
+
+                      return (
+                        <React.Fragment key={category.id}>
+                          <tr className="border-b border-gray-200 dark:border-gray-800">
+                            <td className="px-6 py-3">
+                              <div className="flex items-center">
+                                <button
+                                  onClick={() => toggleExpand(category.id)}
+                                  className="mr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                  {category.isExpanded ? (
+                                    <ChevronDown size={16} />
+                                  ) : (
+                                    <ChevronRight size={16} />
+                                  )}
+                                </button>
+                                <span className="font-medium">{category.nom}</span>
+                              </div>
+                            </td>
+                            <td className="text-right px-6 py-3">
+                              {formatAmount(categoryReel)}
+                            </td>
+                            <td className="text-right px-6 py-3">
+                              {formatAmount(categoryPrevisionnel)}
+                            </td>
+                            <td className={`text-right px-6 py-3 ${
+                              getEcartColor(categoryReel, categoryPrevisionnel)
+                            }`}>
+                              {calculateEcart(categoryReel, categoryPrevisionnel)}
+                            </td>
+                            <td className="px-6 py-3">
+                              <div className="flex justify-end space-x-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingItem(category.id);
+                                    setNewItemData({
+                                      ...newItemData,
+                                      nom: category.nom
+                                    });
+                                  }}
+                                  className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteItem(category.id)}
+                                  className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {category.isExpanded && subcategories.map(subcategory => {
+                            const transactions = items.filter(
+                              t => t.type === 'transaction' && 
+                              t.parent_id === subcategory.id
+                            );
+                            const subcategoryReel = transactions.reduce(
+                              (sum, t) => sum + (t.valeur_reel || 0),
+                              0
+                            );
+
+                            return (
+                              <React.Fragment key={subcategory.id}>
+                                <tr className="bg-gray-50 dark:bg-gray-800/50">
+                                  <td className="px-6 py-3">
+                                    <div className="flex items-center pl-6">
+                                      <button
+                                        onClick={() => toggleExpand(subcategory.id)}
+                                        className="mr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                      >
+                                        {subcategory.isExpanded ? (
+                                          <ChevronDown size={16} />
+                                        ) : (
+                                          <ChevronRight size={16} />
+                                        )}
+                                      </button>
+                                      <span>{subcategory.nom}</span>
+                                    </div>
+                                  </td>
+                                  <td className="text-right px-6 py-3">
+                                    {formatAmount(subcategoryReel)}
+                                  </td>
+                                  <td className="text-right px-6 py-3">
+                                    {formatAmount(subcategory.valeur_previsionnel || 0)}
+                                  </td>
+                                  <td className={`text-right px-6 py-3 ${
+                                    getEcartColor(
+                                      subcategoryReel,
+                                      subcategory.valeur_previsionnel || 0
+                                    )
+                                  }`}>
+                                    {calculateEcart(
+                                      subcategoryReel,
+                                      subcategory.valeur_previsionnel || 0
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-3">
+                                    <div className="flex justify-end space-x-2">
+                                      <button
+                                        onClick={() => {
+                                          setEditingItem(subcategory.id);
+                                          setNewItemData({
+                                            ...newItemData,
+                                            nom: subcategory.nom,
+                                            valeur_previsionnel: 
+                                              subcategory.valeur_previsionnel || 0
+                                          });
+                                        }}
+                                        className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
+                                      >
+                                        <Edit2 size={16} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteItem(subcategory.id)}
+                                        className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+
+                                {subcategory.isExpanded && (
+                                  <tr>
+                                    <td colSpan={5} className="px-6 py-2">
+                                      {renderTransactions(subcategory.id)}
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+
+                          {/* Add subcategory form */}
+                          {category.isExpanded && (
+                            <tr className="bg-gray-50 dark:bg-gray-800/50">
+                              <td colSpan={5} className="px-6 py-2">
+                                <div className="flex items-center space-x-4 pl-6">
+                                  <Input
+                                    placeholder="Nouvelle sous-catégorie..."
+                                    value={newItemData.nom}
+                                    onChange={(e) => setNewItemData({ 
+                                      ...newItemData, 
+                                      nom: e.target.value 
+                                    })}
+                                    className="w-64"
+                                  />
+                                  <Input
+                                    type="number"
+                                    placeholder="Prévisionnel"
+                                    value={newItemData.valeur_previsionnel}
+                                    onChange={(e) => setNewItemData({ 
+                                      ...newItemData, 
+                                      valeur_previsionnel: parseFloat(e.target.value) 
+                                    })}
+                                    className="w-32"
+                                  />
+                                  <Button
+                                    onClick={() => handleAddItem(
+                                      'sous-categorie',
+                                      category.id
+                                    )}
+                                    size="sm"
+                                  >
+                                    <Plus size={16} className="mr-2" />
+                                    Ajouter
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                        <td className="text-right px-6 py-3">
-                          {editingItem === item.id ? (
-                            <Input
-                              type="number"
-                              value={newItemData.valeur_previsionnel}
-                              onChange={(e) => setNewItemData({ ...newItemData, valeur_previsionnel: parseFloat(e.target.value) })}
-                              onBlur={() => handleUpdateItem(item.id)}
-                              className="w-32"
-                            />
-                          ) : (
-                            formatAmount(item.valeur_previsionnel)
-                          )}
-                        </td>
-                        <td className={`text-right px-6 py-3 ${item.type === 'categorie' ? getEcartColor(item.valeur_reel, item.valeur_previsionnel) : ''}`}>
-                          {item.type === 'categorie' && calculateEcart(item.valeur_reel, item.valeur_previsionnel)}
-                        </td>
-                        <td className="px-6 py-3">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => {
-                                setEditingItem(item.id);
-                                setNewItemData({
-                                  nom: item.nom,
-                                  valeur_reel: item.valeur_reel,
-                                  valeur_previsionnel: item.valeur_previsionnel
-                                });
-                              }}
-                              className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteItem(item.id)}
-                              className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    </React.Fragment>
-                  ))}
+                        </React.Fragment>
+                      );
+                    })}
                 </SortableContext>
               </DndContext>
               
               {/* Total général */}
               {(() => {
-                const { totalReel, totalPrevisionnel } = getTotalsByType();
+                const { totalReel, totalPrevisionnel } = calculateTotals();
                 return (
                   <tr className="font-medium bg-gray-50 dark:bg-gray-800">
                     <td className="px-6 py-3">Total général</td>
-                    <td className="text-right px-6 py-3">{formatAmount(totalReel)}</td>
-                    <td className="text-right px-6 py-3">{formatAmount(totalPrevisionnel)}</td>
-                    <td className={`text-right px-6 py-3 ${getEcartColor(totalReel, totalPrevisionnel)}`}>
+                    <td className="text-right px-6 py-3">
+                      {formatAmount(totalReel)}
+                    </td>
+                    <td className="text-right px-6 py-3">
+                      {formatAmount(totalPrevisionnel)}
+                    </td>
+                    <td className={`text-right px-6 py-3 ${
+                      getEcartColor(totalReel, totalPrevisionnel)
+                    }`}>
                       {calculateEcart(totalReel, totalPrevisionnel)}
                     </td>
                     <td className="px-6 py-3"></td>
@@ -325,33 +568,22 @@ const ExpenseManager: React.FC = () => {
                 );
               })()}
 
-              {/* Ligne d'ajout */}
+              {/* Add category form */}
               <tr className="border-t border-gray-200 dark:border-gray-800">
                 <td colSpan={5} className="px-6 py-3">
-                  <div className="flex gap-4">
+                  <div className="flex items-center space-x-4">
                     <Input
                       placeholder="Nouvelle catégorie..."
                       value={newItemData.nom}
-                      onChange={(e) => setNewItemData({ ...newItemData, nom: e.target.value })}
-                      className="w-48"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Réel"
-                      value={newItemData.valeur_reel}
-                      onChange={(e) => setNewItemData({ ...newItemData, valeur_reel: parseFloat(e.target.value) })}
-                      className="w-32"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Prévisionnel"
-                      value={newItemData.valeur_previsionnel}
-                      onChange={(e) => setNewItemData({ ...newItemData, valeur_previsionnel: parseFloat(e.target.value) })}
-                      className="w-32"
+                      onChange={(e) => setNewItemData({ 
+                        ...newItemData, 
+                        nom: e.target.value 
+                      })}
+                      className="w-64"
                     />
                     <Button
                       onClick={() => handleAddItem('categorie')}
-                      className="ml-2"
+                      size="sm"
                     >
                       <Plus size={16} className="mr-2" />
                       Ajouter
