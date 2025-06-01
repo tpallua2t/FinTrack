@@ -128,25 +128,33 @@ const RevenueManager: React.FC = () => {
 
   const handleDeleteRevenue = async (revenue: Revenue) => {
     try {
+      // Delete the current revenue
       await deleteDoc(doc(db, 'revenues', revenue.id));
 
       if (revenue.type === 'regulier' && revenue.groupe_id) {
-        // Supprimer tous les revenus futurs du même groupe
+        // Get all future revenues from the same group
         const futurRevenuesRef = collection(db, 'revenues');
         const q = query(
           futurRevenuesRef,
-          where('groupe_id', '==', revenue.groupe_id),
-          where('annee', '>=', revenue.annee),
-          where('mois', '>', revenue.mois)
+          where('groupe_id', '==', revenue.groupe_id)
         );
         
         const snapshot = await getDocs(q);
-        snapshot.forEach(async (doc) => {
-          await deleteDoc(doc.ref);
-        });
+        const deletionPromises = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as Revenue))
+          .filter(rev => {
+            // Filter future revenues in JavaScript instead of in the query
+            if (rev.annee > revenue.annee) return true;
+            if (rev.annee === revenue.annee && rev.mois > revenue.mois) return true;
+            return false;
+          })
+          .map(rev => deleteDoc(doc(db, 'revenues', rev.id)));
+
+        await Promise.all(deletionPromises);
       }
 
       setRevenues(revenues.filter(r => r.id !== revenue.id));
+      await loadRevenues(); // Reload to ensure the list is up to date
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
     }
