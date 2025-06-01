@@ -33,28 +33,28 @@ const Auth: React.FC = () => {
         navigate('/');
       } else if (mode === 'signup') {
         if (password.length < 6) {
-          throw new Error('Password must be at least 6 characters long');
+          throw new Error('Le mot de passe doit contenir au moins 6 caractères');
         }
         await signUp(email, password);
         navigate('/');
       } else if (mode === 'forgot-password') {
         await resetPassword(email);
-        setMessage('Password reset email sent. Check your inbox.');
+        setMessage('Email de réinitialisation envoyé. Vérifiez votre boîte de réception.');
       }
     } catch (err: any) {
-      console.error('Auth error:', err);
+      console.error('Erreur d\'authentification:', err);
       if (err.code === 'auth/email-already-in-use') {
-        setError('An account with this email already exists.');
+        setError('Un compte existe déjà avec cet email.');
       } else if (err.code === 'auth/invalid-email') {
-        setError('Invalid email address.');
+        setError('Adresse email invalide.');
       } else if (err.code === 'auth/weak-password') {
-        setError('Password is too weak. It must be at least 6 characters long.');
+        setError('Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.');
       } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('Invalid email or password.');
+        setError('Email ou mot de passe incorrect.');
       } else if (err.code === 'auth/too-many-requests') {
-        setError('Too many failed attempts. Please try again later.');
+        setError('Trop de tentatives échouées. Veuillez réessayer plus tard.');
       } else {
-        setError(err.message || 'Failed to authenticate. Please try again.');
+        setError(err.message || 'Échec de l\'authentification. Veuillez réessayer.');
       }
     }
 
@@ -69,11 +69,11 @@ const Auth: React.FC = () => {
       await signInWithGoogle();
       navigate('/');
     } catch (err: any) {
-      console.error('Google sign in error:', err);
+      console.error('Erreur de connexion Google:', err);
       if (err.code === 'auth/popup-closed-by-user') {
-        setError('Sign in cancelled.');
+        setError('Connexion annulée.');
       } else {
-        setError('Failed to sign in with Google. Please try again.');
+        setError('Échec de la connexion avec Google. Veuillez réessayer.');
       }
     }
     
@@ -83,11 +83,11 @@ const Auth: React.FC = () => {
   const renderTitle = () => {
     switch (mode) {
       case 'signin':
-        return 'Sign In';
+        return 'Connexion';
       case 'signup':
-        return 'Create Account';
+        return 'Créer un compte';
       case 'forgot-password':
-        return 'Reset Password';
+        return 'Réinitialiser le mot de passe';
     }
   };
 
@@ -100,7 +100,7 @@ const Auth: React.FC = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-600 dark:text-blue-400">FinTrack</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Personal Finance Tracker</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Suivi des finances personnelles</p>
         </div>
         
         <Card>
@@ -136,12 +136,12 @@ const Auth: React.FC = () => {
                   />
                   <Input
                     type="email"
-                    placeholder="Email Address"
+                    placeholder="Adresse email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     className="pl-10"
-                    aria-label="Email Address"
+                    aria-label="Adresse email"
                   />
                 </div>
               </div>
@@ -156,25 +156,25 @@ const Auth: React.FC = () => {
                     />
                     <Input
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="Password"
+                      placeholder="Mot de passe"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       className="pl-10"
                       minLength={6}
-                      aria-label="Password"
+                      aria-label="Mot de passe"
                     />
                     <button
                       type="button"
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full p-1"
                       onClick={() => setShowPassword(!showPassword)}
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                   {mode === 'signup' && (
-                    <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>
+                    <p className="text-xs text-gray-500 mt-1">Le mot de passe doit contenir au moins 6 caractères</p>
                   )}
                 </div>
               )}
@@ -183,16 +183,16 @@ const Auth: React.FC = () => {
                 type="submit"
                 className="w-full"
                 isLoading={loading}
-                aria-label={mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : 'Reset Password'}
+                aria-label={mode === 'signin' ? 'Se connecter' : mode === 'signup' ? 'S\'inscrire' : 'Réinitialiser le mot de passe'}
               >
-                {mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : 'Reset Password'}
+                {mode === 'signin' ? 'Se connecter' : mode === 'signup' ? 'S\'inscrire' : 'Réinitialiser le mot de passe'}
               </Button>
               
               {mode !== 'forgot-password' && (
                 <>
                   <div className="relative flex items-center justify-center">
                     <hr className="w-full border-t border-gray-300 dark:border-gray-700" />
-                    <span className="absolute bg-white dark:bg-gray-900 px-2 text-sm text-gray-500 dark:text-gray-400">or</span>
+                    <span className="absolute bg-white dark:bg-gray-900 px-2 text-sm text-gray-500 dark:text-gray-400">ou</span>
                   </div>
                   
                   <Button
@@ -201,7 +201,7 @@ const Auth: React.FC = () => {
                     className="w-full"
                     onClick={handleGoogleSignIn}
                     disabled={loading}
-                    aria-label="Continue with Google"
+                    aria-label="Continuer avec Google"
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" aria-hidden="true">
                       <path
@@ -209,7 +209,7 @@ const Auth: React.FC = () => {
                         d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032c0-3.331,2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12c0,5.523,4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
                       />
                     </svg>
-                    Continue with Google
+                    Continuer avec Google
                   </Button>
                 </>
               )}
@@ -219,35 +219,35 @@ const Auth: React.FC = () => {
               {mode === 'signin' ? (
                 <>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Don't have an account?{' '}
+                    Pas encore de compte ?{' '}
                     <button
                       type="button"
                       onClick={() => setMode('signup')}
                       className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium focus:outline-none focus:underline"
-                      aria-label="Switch to sign up"
+                      aria-label="Passer à l'inscription"
                     >
-                      Sign Up
+                      S'inscrire
                     </button>
                   </p>
                   <button
                     type="button"
                     onClick={() => setMode('forgot-password')}
                     className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium mt-2 focus:outline-none focus:underline"
-                    aria-label="Reset password"
+                    aria-label="Réinitialiser le mot de passe"
                   >
-                    Forgot Password?
+                    Mot de passe oublié ?
                   </button>
                 </>
               ) : mode === 'signup' ? (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Already have an account?{' '}
+                  Déjà un compte ?{' '}
                   <button
                     type="button"
                     onClick={() => setMode('signin')}
                     className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium focus:outline-none focus:underline"
-                    aria-label="Switch to sign in"
+                    aria-label="Passer à la connexion"
                   >
-                    Sign In
+                    Se connecter
                   </button>
                 </p>
               ) : (
@@ -255,9 +255,9 @@ const Auth: React.FC = () => {
                   type="button"
                   onClick={() => setMode('signin')}
                   className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium focus:outline-none focus:underline"
-                  aria-label="Back to sign in"
+                  aria-label="Retour à la connexion"
                 >
-                  Back to Sign In
+                  Retour à la connexion
                 </button>
               )}
             </div>

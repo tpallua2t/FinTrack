@@ -13,7 +13,6 @@ import Auth from './pages/Auth';
 import TransactionForm from './components/transactions/TransactionForm';
 import { Transaction } from './types';
 
-// Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuth();
   
@@ -28,7 +27,7 @@ function App() {
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   
   const handleAddTransaction = (data: Partial<Transaction>) => {
-    console.log('Adding transaction:', data);
+    console.log('Ajout de la transaction:', data);
     setShowAddTransaction(false);
   };
   
@@ -52,7 +51,7 @@ function App() {
               <Route path="/patrimoine" element={<Patrimoine />} />
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/\" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
           

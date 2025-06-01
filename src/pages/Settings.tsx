@@ -7,11 +7,11 @@ const Settings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Paramètres</h1>
       
       <Card>
         <CardHeader>
-          <CardTitle>Account Settings</CardTitle>
+          <CardTitle>Paramètres du compte</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
