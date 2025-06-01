@@ -22,7 +22,6 @@ interface ExpenseItem {
   user_id: string;
   parent_id?: string;
   order: number;
-  date?: Date;
   description?: string;
   isExpanded?: boolean;
 }
@@ -36,8 +35,7 @@ const ExpenseManager: React.FC = () => {
     nom: '',
     valeur_reel: 0,
     valeur_previsionnel: 0,
-    description: '',
-    date: new Date()
+    description: ''
   });
 
   const sensors = useSensors(
@@ -143,7 +141,6 @@ const ExpenseManager: React.FC = () => {
     // Add specific fields based on type
     if (type === 'transaction') {
       newItem.valeur_reel = newItemData.valeur_reel;
-      newItem.date = newItemData.date;
       newItem.description = newItemData.description;
     } else if (type === 'sous-categorie') {
       newItem.valeur_previsionnel = newItemData.valeur_previsionnel;
@@ -161,8 +158,7 @@ const ExpenseManager: React.FC = () => {
         nom: '', 
         valeur_reel: 0, 
         valeur_previsionnel: 0,
-        description: '',
-        date: new Date()
+        description: ''
       });
     } catch (error) {
       console.error('Erreur lors de l\'ajout:', error);
@@ -172,19 +168,31 @@ const ExpenseManager: React.FC = () => {
   const handleUpdateItem = async (id: string) => {
     if (!currentUser) return;
 
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+
+    const updateData = {
+      nom: newItemData.nom,
+      ...(item.type === 'transaction' ? { 
+        valeur_reel: newItemData.valeur_reel,
+        description: newItemData.description
+      } : item.type === 'sous-categorie' ? {
+        valeur_previsionnel: newItemData.valeur_previsionnel
+      } : {})
+    };
+
     const docRef = doc(db, 'expenses', id);
     try {
-      await updateDoc(docRef, newItemData);
+      await updateDoc(docRef, updateData);
       setItems(items.map(item => 
-        item.id === id ? { ...item, ...newItemData } : item
+        item.id === id ? { ...item, ...updateData } : item
       ));
       setEditingItem(null);
       setNewItemData({ 
         nom: '', 
         valeur_reel: 0, 
         valeur_previsionnel: 0,
-        description: '',
-        date: new Date()
+        description: ''
       });
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
@@ -234,10 +242,7 @@ const ExpenseManager: React.FC = () => {
       <div className="pl-12 space-y-2">
         {transactions.map(transaction => (
           <div key={transaction.id} className="flex items-center justify-between py-2 text-sm">
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-500 dark:text-gray-400">
-                {format(transaction.date!, 'dd/MM/yyyy')}
-              </span>
+            <div className="flex-1">
               <span>{transaction.description}</span>
             </div>
             <div className="flex items-center space-x-4">
@@ -250,8 +255,7 @@ const ExpenseManager: React.FC = () => {
                       ...newItemData,
                       nom: transaction.nom,
                       valeur_reel: transaction.valeur_reel || 0,
-                      description: transaction.description || '',
-                      date: transaction.date || new Date()
+                      description: transaction.description || ''
                     });
                   }}
                   className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
@@ -272,20 +276,12 @@ const ExpenseManager: React.FC = () => {
         {/* Add transaction form */}
         <div className="flex items-center space-x-4 py-2">
           <Input
-            type="date"
-            value={format(newItemData.date, 'yyyy-MM-dd')}
-            onChange={(e) => setNewItemData({ 
-              ...newItemData, 
-              date: new Date(e.target.value) 
-            })}
-            className="w-32"
-          />
-          <Input
             placeholder="Description"
             value={newItemData.description}
             onChange={(e) => setNewItemData({ 
               ...newItemData, 
-              description: e.target.value 
+              description: e.target.value,
+              nom: e.target.value // Use description as nom for transactions
             })}
             className="flex-1"
           />
@@ -303,7 +299,8 @@ const ExpenseManager: React.FC = () => {
             onClick={() => handleAddItem('transaction', subcategoryId)}
             size="sm"
           >
-            <Plus size={16} />
+            <Plus size={16} className="mr-2" />
+            Ajouter une transaction
           </Button>
         </div>
       </div>
@@ -382,7 +379,19 @@ const ExpenseManager: React.FC = () => {
                                     <ChevronRight size={16} />
                                   )}
                                 </button>
-                                <span className="font-medium">{category.nom}</span>
+                                {editingItem === category.id ? (
+                                  <Input
+                                    value={newItemData.nom}
+                                    onChange={(e) => setNewItemData({ 
+                                      ...newItemData, 
+                                      nom: e.target.value 
+                                    })}
+                                    onBlur={() => handleUpdateItem(category.id)}
+                                    className="w-48"
+                                  />
+                                ) : (
+                                  <span className="font-medium">{category.nom}</span>
+                                )}
                               </div>
                             </td>
                             <td className="text-right px-6 py-3">
@@ -445,14 +454,39 @@ const ExpenseManager: React.FC = () => {
                                           <ChevronRight size={16} />
                                         )}
                                       </button>
-                                      <span>{subcategory.nom}</span>
+                                      {editingItem === subcategory.id ? (
+                                        <Input
+                                          value={newItemData.nom}
+                                          onChange={(e) => setNewItemData({ 
+                                            ...newItemData, 
+                                            nom: e.target.value 
+                                          })}
+                                          onBlur={() => handleUpdateItem(subcategory.id)}
+                                          className="w-48"
+                                        />
+                                      ) : (
+                                        <span>{subcategory.nom}</span>
+                                      )}
                                     </div>
                                   </td>
                                   <td className="text-right px-6 py-3">
                                     {formatAmount(subcategoryReel)}
                                   </td>
                                   <td className="text-right px-6 py-3">
-                                    {formatAmount(subcategory.valeur_previsionnel || 0)}
+                                    {editingItem === subcategory.id ? (
+                                      <Input
+                                        type="number"
+                                        value={newItemData.valeur_previsionnel}
+                                        onChange={(e) => setNewItemData({ 
+                                          ...newItemData, 
+                                          valeur_previsionnel: parseFloat(e.target.value) 
+                                        })}
+                                        onBlur={() => handleUpdateItem(subcategory.id)}
+                                        className="w-32 ml-auto"
+                                      />
+                                    ) : (
+                                      formatAmount(subcategory.valeur_previsionnel || 0)
+                                    )}
                                   </td>
                                   <td className={`text-right px-6 py-3 ${
                                     getEcartColor(
@@ -516,26 +550,29 @@ const ExpenseManager: React.FC = () => {
                                     })}
                                     className="w-64"
                                   />
-                                  <Input
-                                    type="number"
-                                    placeholder="Prévisionnel"
-                                    value={newItemData.valeur_previsionnel}
-                                    onChange={(e) => setNewItemData({ 
-                                      ...newItemData, 
-                                      valeur_previsionnel: parseFloat(e.target.value) 
-                                    })}
-                                    className="w-32"
-                                  />
-                                  <Button
-                                    onClick={() => handleAddItem(
-                                      'sous-categorie',
-                                      category.id
-                                    )}
-                                    size="sm"
-                                  >
-                                    <Plus size={16} className="mr-2" />
-                                    Ajouter
-                                  </Button>
+                                  <div className="flex-1 flex justify-end pr-6">
+                                    <Input
+                                      type="number"
+                                      placeholder="Prévisionnel"
+                                      value={newItemData.valeur_previsionnel}
+                                      onChange={(e) => setNewItemData({ 
+                                        ...newItemData, 
+                                        valeur_previsionnel: parseFloat(e.target.value) 
+                                      })}
+                                      className="w-32"
+                                    />
+                                    <Button
+                                      onClick={() => handleAddItem(
+                                        'sous-categorie',
+                                        category.id
+                                      )}
+                                      size="sm"
+                                      className="ml-4"
+                                    >
+                                      <Plus size={16} className="mr-2" />
+                                      Ajouter une sous-catégorie
+                                    </Button>
+                                  </div>
                                 </div>
                               </td>
                             </tr>
@@ -586,7 +623,7 @@ const ExpenseManager: React.FC = () => {
                       size="sm"
                     >
                       <Plus size={16} className="mr-2" />
-                      Ajouter
+                      Ajouter une catégorie
                     </Button>
                   </div>
                 </td>
