@@ -24,6 +24,7 @@ interface ExpenseItem {
   order: number;
   description?: string;
   isExpanded?: boolean;
+  isEditing?: boolean;
 }
 
 const ExpenseManager: React.FC = () => {
@@ -138,7 +139,6 @@ const ExpenseManager: React.FC = () => {
       order: items.length
     };
 
-    // Add specific fields based on type
     if (type === 'transaction') {
       newItem.valeur_reel = newItemData.valeur_reel;
       newItem.description = newItemData.description;
@@ -146,7 +146,6 @@ const ExpenseManager: React.FC = () => {
       newItem.valeur_previsionnel = newItemData.valeur_previsionnel;
     }
 
-    // Only add parent_id if it's provided
     if (parentId) {
       newItem.parent_id = parentId;
     }
@@ -199,6 +198,25 @@ const ExpenseManager: React.FC = () => {
     }
   };
 
+  const handleUpdateTransaction = async (id: string, data: Partial<ExpenseItem>) => {
+    if (!currentUser) return;
+
+    const docRef = doc(db, 'expenses', id);
+    try {
+      await updateDoc(docRef, {
+        description: data.description,
+        valeur_reel: data.valeur_reel,
+        nom: data.description
+      });
+      
+      setItems(items.map(item => 
+        item.id === id ? { ...item, ...data, isEditing: false } : item
+      ));
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour:', error);
+    }
+  };
+
   const handleDeleteItem = async (id: string) => {
     if (!currentUser) return;
 
@@ -242,38 +260,61 @@ const ExpenseManager: React.FC = () => {
       <div className="pl-12 space-y-2">
         {transactions.map(transaction => (
           <div key={transaction.id} className="flex items-center justify-between py-2 text-sm">
-            <div className="flex-1">
-              <span>{transaction.description}</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span>{formatAmount(transaction.valeur_reel || 0)}</span>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => {
-                    setEditingItem(transaction.id);
-                    setNewItemData({
-                      ...newItemData,
-                      nom: transaction.nom,
-                      valeur_reel: transaction.valeur_reel || 0,
-                      description: transaction.description || ''
+            {transaction.isEditing ? (
+              <>
+                <Input
+                  defaultValue={transaction.description}
+                  className="flex-1 mr-4"
+                  onBlur={(e) => {
+                    handleUpdateTransaction(transaction.id, {
+                      description: e.target.value,
+                      valeur_reel: transaction.valeur_reel
                     });
                   }}
-                  className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button
-                  onClick={() => handleDeleteItem(transaction.id)}
-                  className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
+                />
+                <Input
+                  type="number"
+                  defaultValue={transaction.valeur_reel}
+                  className="w-32 mr-4"
+                  onBlur={(e) => {
+                    handleUpdateTransaction(transaction.id, {
+                      description: transaction.description,
+                      valeur_reel: parseFloat(e.target.value)
+                    });
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <div className="flex-1">
+                  <span>{transaction.description}</span>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <span className="w-32 text-right">{formatAmount(transaction.valeur_reel || 0)}</span>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        setItems(items.map(item =>
+                          item.id === transaction.id ? { ...item, isEditing: true } : item
+                        ));
+                      }}
+                      className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteItem(transaction.id)}
+                      className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         ))}
         
-        {/* Add transaction form */}
         <div className="flex items-center space-x-4 py-2">
           <Input
             placeholder="Description"
@@ -281,7 +322,7 @@ const ExpenseManager: React.FC = () => {
             onChange={(e) => setNewItemData({ 
               ...newItemData, 
               description: e.target.value,
-              nom: e.target.value // Use description as nom for transactions
+              nom: e.target.value
             })}
             className="flex-1"
           />
@@ -300,7 +341,7 @@ const ExpenseManager: React.FC = () => {
             size="sm"
           >
             <Plus size={16} className="mr-2" />
-            Ajouter une transaction
+            + Transaction
           </Button>
         </div>
       </div>
@@ -536,7 +577,6 @@ const ExpenseManager: React.FC = () => {
                             );
                           })}
 
-                          {/* Add subcategory form */}
                           {category.isExpanded && (
                             <tr className="bg-gray-50 dark:bg-gray-800/50">
                               <td colSpan={5} className="px-6 py-2">
@@ -562,15 +602,12 @@ const ExpenseManager: React.FC = () => {
                                       className="w-32"
                                     />
                                     <Button
-                                      onClick={() => handleAddItem(
-                                        'sous-categorie',
-                                        category.id
-                                      )}
+                                      onClick={() => handleAddItem('sous-categorie', category.id)}
                                       size="sm"
                                       className="ml-4"
                                     >
                                       <Plus size={16} className="mr-2" />
-                                      Ajouter une sous-catégorie
+                                      + Sous-catégorie
                                     </Button>
                                   </div>
                                 </div>
@@ -583,7 +620,6 @@ const ExpenseManager: React.FC = () => {
                 </SortableContext>
               </DndContext>
               
-              {/* Total général */}
               {(() => {
                 const { totalReel, totalPrevisionnel } = calculateTotals();
                 return (
@@ -605,7 +641,6 @@ const ExpenseManager: React.FC = () => {
                 );
               })()}
 
-              {/* Add category form */}
               <tr className="border-t border-gray-200 dark:border-gray-800">
                 <td colSpan={5} className="px-6 py-3">
                   <div className="flex items-center space-x-4">
@@ -623,7 +658,7 @@ const ExpenseManager: React.FC = () => {
                       size="sm"
                     >
                       <Plus size={16} className="mr-2" />
-                      Ajouter une catégorie
+                      + Catégorie
                     </Button>
                   </div>
                 </td>
