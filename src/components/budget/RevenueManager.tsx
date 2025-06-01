@@ -160,6 +160,57 @@ const RevenueManager: React.FC = () => {
     }).format(amount);
   };
 
+  const calculateTotalRevenues = () => {
+    const total = revenues.reduce((sum, revenue) => sum + revenue.valeur, 0);
+    const regularTotal = revenues
+      .filter(r => r.type === 'regulier')
+      .reduce((sum, r) => sum + r.valeur, 0);
+    const exceptionalTotal = revenues
+      .filter(r => r.type === 'exceptionnel')
+      .reduce((sum, r) => sum + r.valeur, 0);
+
+    return { total, regularTotal, exceptionalTotal };
+  };
+
+  const renderRevenueSummary = () => {
+    const { total, regularTotal, exceptionalTotal } = calculateTotalRevenues();
+    const [year, month] = selectedPeriod.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    const formattedDate = format(date, 'MMMM yyyy', { locale: fr });
+
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              Total des revenus pour {formattedDate}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Total</p>
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                  {formatAmount(total)}
+                </p>
+              </div>
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                <p className="text-sm text-green-600 dark:text-green-400 font-medium">Revenus réguliers</p>
+                <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                  {formatAmount(regularTotal)}
+                </p>
+              </div>
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">Revenus exceptionnels</p>
+                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                  {formatAmount(exceptionalTotal)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   const renderRevenueTable = (type: 'regulier' | 'exceptionnel') => {
     const filteredRevenues = revenues.filter(r => r.type === type);
 
@@ -216,6 +267,8 @@ const RevenueManager: React.FC = () => {
           Revenu
         </Button>
       </div>
+
+      {renderRevenueSummary()}
 
       <div className="grid gap-6">
         <Card>
