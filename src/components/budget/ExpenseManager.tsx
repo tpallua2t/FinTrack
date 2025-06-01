@@ -1,247 +1,270 @@
-import React, { useState } from 'react';
-import { Plus, Filter, Edit2, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronDown, ChevronRight, Plus, Edit2, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
-import { formatCurrency } from '../../utils/helpers';
+import { db } from '../../lib/firebase';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface Expense {
+interface BudgetItem {
   id: string;
-  description: string;
-  amount: number;
-  category: string;
-  date: string;
+  type: 'category' | 'subcategory';
+  name: string;
+  realAmount: number;
+  plannedAmount: number;
+  parentId?: string;
+  order: number;
+  isExpanded?: boolean;
 }
-
-interface ExpenseFormData {
-  description: string;
-  amount: number;
-  category: string;
-  date: string;
-}
-
-const CATEGORIES = [
-  { value: 'course', label: 'Course' },
-  { value: 'alimentaire', label: 'Alimentaire' },
-  { value: 'vehicule', label: 'Véhicule' },
-];
 
 const ExpenseManager: React.FC = () => {
-  const [expenses, setExpenses] = useState<Expense[]>([
-    {
-      id: '1',
-      description: 'Courses hebdomadaires',
-      amount: 250,
-      category: 'course',
-      date: '2025-06-01'
-    },
-    {
-      id: '2',
-      description: 'Essence',
-      amount: 80,
-      category: 'vehicule',
-      date: '2025-06-01'
-    }
-  ]);
-  
-  const [showForm, setShowForm] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [formData, setFormData] = useState<ExpenseFormData>({
-    description: '',
-    amount: 0,
-    category: '',
-    date: new Date().toISOString().split('T')[0]
+  const { currentUser } = useAuth();
+  const [selectedPeriod, setSelectedPeriod] = useState(() => format(new Date(), 'yyyy-MM'));
+  const [items, setItems] = useState<BudgetItem[]>([]);
+  const [isAddingItem, setIsAddingItem] = useState(false);
+  const [newItemData, setNewItemData] = useState({
+    name: '',
+    plannedAmount: 0,
+    type: 'category' as const,
+    parentId: ''
   });
-  const [sortConfig, setSortConfig] = useState<{
-    key: keyof Expense;
-    direction: 'asc' | 'desc';
-  } | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
 
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'amount' ? parseFloat(value) || 0 : value
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingExpense) {
-      setExpenses(expenses.map(expense => 
-        expense.id === editingExpense.id 
-          ? { ...formData, id: expense.id }
-          : expense
-      ));
-    } else {
-      setExpenses([...expenses, { ...formData, id: Date.now().toString() }]);
+  useEffect(() => {
+    if (currentUser) {
+      loadBudgetItems();
     }
-    
-    setFormData({
-      description: '',
-      amount: 0,
-      category: '',
-      date: new Date().toISOString().split('T')[0]
-    });
-    setShowForm(false);
-    setEditingExpense(null);
-  };
+  }, [currentUser, selectedPeriod]);
 
-  const handleEdit = (expense: Expense) => {
-    setEditingExpense(expense);
-    setFormData(expense);
-    setShowForm(true);
-  };
+  const loadBudgetItems = async () => {
+    if (!currentUser) return;
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette dépense ?')) {
-      setExpenses(expenses.filter(expense => expense.id !== id));
+    const [year, month] = selectedPeriod.split('-');
+    const budgetRef = collection(db, 'budgets');
+    const q = query(
+      budgetRef,
+      where('userId', '==', currentUser.uid),
+      where('year', '==', parseInt(year)),
+      where('month', '==', parseInt(month))
+    );
+
+    try {
+      const snapshot = await getDocs(q);
+      const loadedItems: BudgetItem[] = [];
+      snapshot.forEach(doc => {
+        loadedItems.push({ id: doc.id, ...doc.data() } as BudgetItem);
+      });
+      setItems(loadedItems.sort((a, b) => a.order - b.order));
+    } catch (error) {
+      console.error('Erreur lors du chargement du budget:', error);
     }
   };
 
-  const handleSort = (key: keyof Expense) => {
-    setSortConfig(current => ({
-      key,
-      direction: current?.key === key && current.direction === 'asc' ? 'desc' : 'asc'
-    }));
+  const handleDragEnd = async (event: any) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setItems((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex).map((item, index) => ({
+          ...item,
+          order: index
+        }));
+      });
+    }
   };
 
-  const filteredAndSortedExpenses = [...expenses]
-    .filter(expense => !categoryFilter || expense.category === categoryFilter)
-    .sort((a, b) => {
-      if (!sortConfig) return 0;
-      
-      const direction = sortConfig.direction === 'asc' ? 1 : -1;
-      if (a[sortConfig.key] < b[sortConfig.key]) return -1 * direction;
-      if (a[sortConfig.key] > b[sortConfig.key]) return 1 * direction;
-      return 0;
-    });
+  const toggleExpand = (id: string) => {
+    setItems(items.map(item => 
+      item.id === id ? { ...item, isExpanded: !item.isExpanded } : item
+    ));
+  };
+
+  const calculateVariance = (real: number, planned: number): string => {
+    if (planned === 0) return '0%';
+    const variance = ((real - planned) / planned) * 100;
+    return `${variance > 0 ? '+' : ''}${variance.toFixed(1)}%`;
+  };
+
+  const getVarianceColor = (real: number, planned: number): string => {
+    if (planned === 0) return 'text-gray-500 dark:text-gray-400';
+    const variance = ((real - planned) / planned) * 100;
+    return variance > 0 
+      ? 'text-red-600 dark:text-red-400' 
+      : 'text-green-600 dark:text-green-400';
+  };
+
+  const getTotalsByType = () => {
+    const categories = items.filter(item => item.type === 'category');
+    const realTotal = categories.reduce((sum, item) => sum + item.realAmount, 0);
+    const plannedTotal = categories.reduce((sum, item) => sum + item.plannedAmount, 0);
+    return { realTotal, plannedTotal };
+  };
+
+  const formatAmount = (amount: number): string => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(amount);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            Dépenses
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Total: {formatCurrency(totalExpenses)}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center"
-          >
-            <Filter size={16} className="mr-2" />
-            Filtrer
-            {showFilters ? (
-              <ChevronUp size={16} className="ml-2" />
-            ) : (
-              <ChevronDown size={16} className="ml-2" />
-            )}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setShowForm(true);
-              setEditingExpense(null);
-              setFormData({
-                description: '',
-                amount: 0,
-                category: '',
-                date: new Date().toISOString().split('T')[0]
-              });
-            }}
-            className="flex items-center"
-          >
-            <Plus size={16} className="mr-2" />
-            Ajouter une dépense
-          </Button>
-        </div>
+        <Input
+          type="month"
+          value={selectedPeriod}
+          onChange={(e) => setSelectedPeriod(e.target.value)}
+          className="w-48"
+        />
       </div>
 
-      {showFilters && (
-        <Card className="bg-gray-50 dark:bg-gray-800/50">
-          <CardContent className="p-4">
-            <div className="flex gap-4">
-              <Select
-                label="Catégorie"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                options={[
-                  { value: '', label: 'Toutes les catégories' },
-                  ...CATEGORIES
-                ]}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardContent className="p-0">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-800">
+                <th className="text-left px-6 py-3">Dépenses</th>
+                <th className="text-right px-6 py-3">Réel</th>
+                <th className="text-right px-6 py-3">Prévisionnel</th>
+                <th className="text-right px-6 py-3">Écart</th>
+                <th className="w-20 px-6 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={items}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {items.map((item) => (
+                    <React.Fragment key={item.id}>
+                      <tr className={`
+                        border-b border-gray-200 dark:border-gray-800
+                        ${item.type === 'subcategory' ? 'bg-gray-50 dark:bg-gray-800/50' : ''}
+                      `}>
+                        <td className="px-6 py-3">
+                          <div className="flex items-center">
+                            {item.type === 'category' && (
+                              <button
+                                onClick={() => toggleExpand(item.id)}
+                                className="mr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                              >
+                                {item.isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                              </button>
+                            )}
+                            <span className={`
+                              ${item.type === 'category' ? 'font-medium' : 'pl-6'}
+                            `}>
+                              {item.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="text-right px-6 py-3">{formatAmount(item.realAmount)}</td>
+                        <td className="text-right px-6 py-3">{formatAmount(item.plannedAmount)}</td>
+                        <td className={`text-right px-6 py-3 ${getVarianceColor(item.realAmount, item.plannedAmount)}`}>
+                          {calculateVariance(item.realAmount, item.plannedAmount)}
+                        </td>
+                        <td className="px-6 py-3">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => {/* Implémenter la modification */}}
+                              className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => {/* Implémenter la suppression */}}
+                              className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  ))}
+                </SortableContext>
+              </DndContext>
+              
+              {/* Total général */}
+              {(() => {
+                const { realTotal, plannedTotal } = getTotalsByType();
+                return (
+                  <tr className="font-medium bg-gray-50 dark:bg-gray-800">
+                    <td className="px-6 py-3">Total général</td>
+                    <td className="text-right px-6 py-3">{formatAmount(realTotal)}</td>
+                    <td className="text-right px-6 py-3">{formatAmount(plannedTotal)}</td>
+                    <td className={`text-right px-6 py-3 ${getVarianceColor(realTotal, plannedTotal)}`}>
+                      {calculateVariance(realTotal, plannedTotal)}
+                    </td>
+                    <td className="px-6 py-3"></td>
+                  </tr>
+                );
+              })()}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
 
-      {showForm && (
+      <Button
+        onClick={() => setIsAddingItem(true)}
+        className="flex items-center"
+      >
+        <Plus size={16} className="mr-2" />
+        Ajouter une catégorie
+      </Button>
+
+      {isAddingItem && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <CardTitle>
-                {editingExpense ? 'Modifier la dépense' : 'Nouvelle dépense'}
-              </CardTitle>
+              <CardTitle>Nouvelle catégorie</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form className="space-y-4">
                 <Input
-                  label="Description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  required
+                  label="Nom"
+                  value={newItemData.name}
+                  onChange={(e) => setNewItemData({ ...newItemData, name: e.target.value })}
                 />
                 <Input
-                  label="Montant"
-                  name="amount"
+                  label="Montant prévisionnel"
                   type="number"
                   step="0.01"
-                  value={formData.amount}
-                  onChange={handleInputChange}
-                  required
+                  value={newItemData.plannedAmount}
+                  onChange={(e) => setNewItemData({ ...newItemData, plannedAmount: parseFloat(e.target.value) })}
                 />
-                <Select
-                  label="Catégorie"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  options={CATEGORIES}
-                  required
-                />
-                <Input
-                  label="Date"
-                  name="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={handleInputChange}
-                  required
-                />
-                <div className="flex justify-end gap-2 mt-6">
+                <div className="flex justify-end gap-2">
                   <Button
-                    type="button"
                     variant="outline"
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingExpense(null);
-                    }}
+                    onClick={() => setIsAddingItem(false)}
                   >
                     Annuler
                   </Button>
-                  <Button type="submit">
-                    {editingExpense ? 'Modifier' : 'Ajouter'}
+                  <Button
+                    onClick={() => {
+                      // Implémenter l'ajout
+                      setIsAddingItem(false);
+                    }}
+                  >
+                    Ajouter
                   </Button>
                 </div>
               </form>
@@ -249,108 +272,6 @@ const ExpenseManager: React.FC = () => {
           </Card>
         </div>
       )}
-
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-800">
-                  <th 
-                    className="px-4 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-400 cursor-pointer"
-                    onClick={() => handleSort('date')}
-                  >
-                    Date
-                    {sortConfig?.key === 'date' && (
-                      sortConfig.direction === 'asc' ? '↑' : '↓'
-                    )}
-                  </th>
-                  <th 
-                    className="px-4 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-400 cursor-pointer"
-                    onClick={() => handleSort('description')}
-                  >
-                    Description
-                    {sortConfig?.key === 'description' && (
-                      sortConfig.direction === 'asc' ? '↑' : '↓'
-                    )}
-                  </th>
-                  <th 
-                    className="px-4 py-3 text-left text-sm font-medium text-gray-500 dark:text-gray-400 cursor-pointer"
-                    onClick={() => handleSort('category')}
-                  >
-                    Catégorie
-                    {sortConfig?.key === 'category' && (
-                      sortConfig.direction === 'asc' ? '↑' : '↓'
-                    )}
-                  </th>
-                  <th 
-                    className="px-4 py-3 text-right text-sm font-medium text-gray-500 dark:text-gray-400 cursor-pointer"
-                    onClick={() => handleSort('amount')}
-                  >
-                    Montant
-                    {sortConfig?.key === 'amount' && (
-                      sortConfig.direction === 'asc' ? '↑' : '↓'
-                    )}
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                {filteredAndSortedExpenses.map(expense => (
-                  <tr 
-                    key={expense.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                      {new Date(expense.date).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                      {expense.description}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                      {CATEGORIES.find(c => c.value === expense.category)?.label}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-gray-100">
-                      {formatCurrency(expense.amount)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(expense)}
-                          className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-                          aria-label="Modifier"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(expense.id)}
-                          className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                          aria-label="Supprimer"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-gray-200 dark:border-gray-800 font-medium">
-                  <td colSpan={3} className="px-4 py-3 text-right text-gray-900 dark:text-gray-100">
-                    Total
-                  </td>
-                  <td className="px-4 py-3 text-right text-gray-900 dark:text-gray-100">
-                    {formatCurrency(totalExpenses)}
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
