@@ -83,74 +83,68 @@ const BudgetSummary: React.FC<{ selectedPeriod: string }> = ({ selectedPeriod })
         Synthèse budgétaire - {formattedDate}
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Revenus
-                  </p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {formatAmount(summary.revenues)}
-                  </p>
-                </div>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Revenus
+                </p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
+                  {formatAmount(summary.revenues)}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                  <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Dépenses
-                  </p>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    {formatAmount(summary.expenses)}
-                  </p>
-                </div>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Dépenses
+                </p>
+                <p className="text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400">
+                  {formatAmount(summary.expenses)}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className={`w-12 h-12 rounded-full ${
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${
+                summary.balance >= 0 
+                  ? 'bg-blue-100 dark:bg-blue-900/20' 
+                  : 'bg-red-100 dark:bg-red-900/20'
+              } flex items-center justify-center`}>
+                <PiggyBank className={`w-5 h-5 sm:w-6 sm:h-6 ${
                   summary.balance >= 0 
-                    ? 'bg-blue-100 dark:bg-blue-900/20' 
-                    : 'bg-red-100 dark:bg-red-900/20'
-                } flex items-center justify-center`}>
-                  <PiggyBank className={`w-6 h-6 ${
-                    summary.balance >= 0 
-                      ? 'text-blue-600 dark:text-blue-400' 
-                      : 'text-red-600 dark:text-red-400'
-                  }`} />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Solde
-                  </p>
-                  <p className={`text-2xl font-bold ${
-                    summary.balance >= 0 
-                      ? 'text-blue-600 dark:text-blue-400' 
-                      : 'text-red-600 dark:text-red-400'
-                  }`}>
-                    {formatAmount(summary.balance)}
-                  </p>
-                </div>
+                    ? 'text-blue-600 dark:text-blue-400' 
+                    : 'text-red-600 dark:text-red-400'
+                }`} />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Solde
+                </p>
+                <p className={`text-xl sm:text-2xl font-bold ${
+                  summary.balance >= 0 
+                    ? 'text-blue-600 dark:text-blue-400' 
+                    : 'text-red-600 dark:text-red-400'
+                }`}>
+                  {formatAmount(summary.balance)}
+                </p>
               </div>
             </div>
           </CardContent>

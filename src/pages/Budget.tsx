@@ -12,12 +12,12 @@ const Budget: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Budget</h1>
-        <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+        <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 overflow-x-auto">
           <button
             onClick={() => setActiveTab('expenses')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
               activeTab === 'expenses'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -27,7 +27,7 @@ const Budget: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('revenues')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
               activeTab === 'revenues'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -37,7 +37,7 @@ const Budget: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('summary')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
               activeTab === 'summary'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -48,9 +48,11 @@ const Budget: React.FC = () => {
         </div>
       </div>
 
-      {activeTab === 'expenses' && <ExpenseManager />}
-      {activeTab === 'revenues' && <RevenueManager />}
-      {activeTab === 'summary' && <BudgetSummary selectedPeriod={selectedPeriod} />}
+      <div className="w-full overflow-x-auto">
+        {activeTab === 'expenses' && <ExpenseManager />}
+        {activeTab === 'revenues' && <RevenueManager />}
+        {activeTab === 'summary' && <BudgetSummary selectedPeriod={selectedPeriod} />}
+      </div>
     </div>
   );
 };
