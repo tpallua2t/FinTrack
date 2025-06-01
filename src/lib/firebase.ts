@@ -3,16 +3,14 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-mode-api-key",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo-mode.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-mode",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "demo-mode.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "000000000000",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:000000000000:web:0000000000000000000000",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-0000000000"
+  apiKey: "AIzaSyCRVlw-7v5cx7sU6WdS_n1lstt5zxyrYcg",
+  authDomain: "fintrack-71f9c.firebaseapp.com",
+  projectId: "fintrack-71f9c",
+  storageBucket: "fintrack-71f9c.firebasestorage.app",
+  messagingSenderId: "700140438317",
+  appId: "1:700140438317:web:f15236bc95ad5a57edc9a4",
+  measurementId: "G-CBTCNP6W9P"
 };
 
 // Initialize Firebase
