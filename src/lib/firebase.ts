@@ -24,8 +24,7 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 // Enable persistence for offline support
-getFirestore(app)
-  .enablePersistence()
+db.enablePersistence()
   .catch((err) => {
     if (err.code === 'failed-precondition') {
       console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
