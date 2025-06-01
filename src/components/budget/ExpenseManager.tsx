@@ -341,7 +341,7 @@ const ExpenseManager: React.FC = () => {
             size="sm"
           >
             <Plus size={16} className="mr-2" />
-            + Transaction
+            Transaction
           </Button>
         </div>
       </div>
@@ -607,7 +607,7 @@ const ExpenseManager: React.FC = () => {
                                       className="ml-4"
                                     >
                                       <Plus size={16} className="mr-2" />
-                                      + Sous-catégorie
+                                      Sous-catégorie
                                     </Button>
                                   </div>
                                 </div>
@@ -658,7 +658,7 @@ const ExpenseManager: React.FC = () => {
                       size="sm"
                     >
                       <Plus size={16} className="mr-2" />
-                      + Catégorie
+                      Catégorie
                     </Button>
                   </div>
                 </td>
