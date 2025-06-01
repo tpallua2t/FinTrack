@@ -10,7 +10,7 @@ import ThemeToggle from '../components/ui/ThemeToggle';
 type AuthMode = 'signin' | 'signup' | 'forgot-password';
 
 const Auth: React.FC = () => {
-  const [mode, setMode] = useState<AuthMode>('signin');
+  const [mode, setMode] = useState<AuthMode>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,15 +32,30 @@ const Auth: React.FC = () => {
         await signIn(email, password);
         navigate('/');
       } else if (mode === 'signup') {
+        if (password.length < 6) {
+          throw new Error('Password must be at least 6 characters long');
+        }
         await signUp(email, password);
         navigate('/');
       } else if (mode === 'forgot-password') {
         await resetPassword(email);
         setMessage('Password reset email sent. Check your inbox.');
       }
-    } catch (err) {
-      setError('Failed to authenticate. Please check your credentials.');
-      console.error(err);
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      if (err.code === 'auth/email-already-in-use') {
+        setError('An account with this email already exists.');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Invalid email address.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password is too weak. It must be at least 6 characters long.');
+      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid email or password.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Too many failed attempts. Please try again later.');
+      } else {
+        setError(err.message || 'Failed to authenticate. Please try again.');
+      }
     }
 
     setLoading(false);
@@ -53,9 +68,13 @@ const Auth: React.FC = () => {
     try {
       await signInWithGoogle();
       navigate('/');
-    } catch (err) {
-      setError('Failed to sign in with Google.');
-      console.error(err);
+    } catch (err: any) {
+      console.error('Google sign in error:', err);
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('Sign in cancelled.');
+      } else {
+        setError('Failed to sign in with Google. Please try again.');
+      }
     }
     
     setLoading(false);
@@ -127,15 +146,19 @@ const Auth: React.FC = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       className="pl-10"
+                      minLength={6}
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
+                  {mode === 'signup' && (
+                    <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>
+                  )}
                 </div>
               )}
               
